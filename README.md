@@ -1,0 +1,3 @@
+This script will ask for a source and destination, copy the source to the destination, and then compare the files between the two using SHA256 hashing.
+It should throw errors if entries are invalid, or if the data comparison fails for whatever reason. I have tried to add exclusions for common metatdata or system folders that don't actually contain any user data. I have done this because these system/metadata folders don't always copy, and can lead to misleading results. The focus is to copy the actual contents of the disk or folder into the destination without any changes or loss of data. Assuming the source media is in good shape, this should work without a fuss.
+Currently, metadata like permissions and timestamps are ignored.
