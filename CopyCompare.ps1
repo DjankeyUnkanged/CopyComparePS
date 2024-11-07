@@ -32,6 +32,41 @@ function Select-SaveFileDialog {
     return $saveFileDialog.FileName
 }
 
+# Function to create and update a progress bar
+function Show-ProgressBar {
+    # Create a form
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "Progress"
+    $form.Width = 400
+    $form.Height = 100
+    $form.StartPosition = "CenterScreen"
+
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Minimum = 0
+    $progressBar.Maximum = 100
+    $progressBar.Width = 350
+    $progressBar.Height = 30
+    $progressBar.Value = 0
+    $progressBar.Style = "Continuous"
+    $progressBar.Location = New-Object System.Drawing.Point(20, 20)
+    $form.Controls.Add($progressBar)
+
+    # Show the form
+    $form.Show()
+
+    # Loop to update the progress bar
+    for ($i = 0; $i -le 100; $i++) {
+        Start-Sleep -Milliseconds 100
+        $progressBar.Value = $i
+        $form.Refresh()
+    }
+
+    # Close the form when done
+    $form.Close()
+}
+
+Show-ProgressBar
+
 # Function to copy files and create directories if they don't exist
 function Copy-Files {
     param (
