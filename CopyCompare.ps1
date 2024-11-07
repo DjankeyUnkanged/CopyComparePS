@@ -33,7 +33,7 @@ function Select-SaveFileDialog {
 }
 
 # Check if user is ready and remind to have source and destination attached
-$QuickCheck = [System.Windows.MessageBox]::Show('Are both Source and Destination connected to this computer?','Readiness check','YesNo','Question')
+$QuickCheck = [System.Windows.MessageBox]::Show('Are Source, Destination and, if needed, a separate disk for the results connected to this computer?','Readiness check','YesNo','Question')
 
 # Check the response of the above prompt and act accordingly (Proceed on Yes, cancel on No)
 if ($QuickCheck -ieq 'Yes') {
