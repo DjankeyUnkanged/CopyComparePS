@@ -104,8 +104,8 @@ if ($QuickCheck -ieq 'Yes') {
             DstPath = $destFile.Path
             SrcHash = $srcFile.Hash
             DstHash = $destFile.Hash
-            SrcSize = $srcFile.Size
-            DstSize = $destFile.Size
+            SrcSizeInBytes = $srcFile.Size
+            DstSizeInBytes = $destFile.Size
             Match = ($srcFile.Hash -eq $destFile.Hash)
         }
         if ($srcFile.Hash -ne $destFile.Hash) {$FailCanary = 'False'}
@@ -128,7 +128,7 @@ if ($QuickCheck -ieq 'Yes') {
     [System.Windows.MessageBox]::Show("Comparison results have been saved to $CsvPath.",'Done!','OK','Information')
 
     # Display the comparison table in console
-    $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSize, DstSize, Match
+    $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
 } else {
     # You shouldn't run the script if you're not ready!!!!
     [System.Windows.MessageBox]::Show('Please make sure Source and Destination are ready, and re-open this script.','Readiness check fail','OK','Exclamation')
