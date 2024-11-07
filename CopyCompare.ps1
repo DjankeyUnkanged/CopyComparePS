@@ -32,6 +32,42 @@ function Select-SaveFileDialog {
     return $saveFileDialog.FileName
 }
 
+# Function to copy files and create directories if they don't exist
+function Copy-Files {
+    param (
+        [string]$source,
+        [string]$destination,
+        [array]$exceptions
+    )
+
+    # Get all items in the source directory
+    $items = Get-ChildItem -Path $source -Recurse
+
+    foreach ($item in $items) {
+        # Get the relative path of the item
+        $relativePath = $item.FullName.Substring($source.Length).TrimStart('\')
+
+        # Get the root folder of the item
+        $rootFolder = $relativePath.Split('\')[0]
+
+        # Check if the root folder is in the exception list
+        if ($exceptions -notcontains $rootFolder) {
+            # Determine the destination path
+            $destPath = Join-Path -Path $destination -ChildPath $relativePath
+
+            if ($item.PSIsContainer) {
+                # Create the directory if it doesn't exist
+                if (-not (Test-Path -Path $destPath)) {
+                    New-Item -ItemType Directory -Path $destPath
+                }
+            } else {
+                # Copy the file
+                Copy-Item -Path $item.FullName -Destination $destPath -Force
+            }
+        }
+    }
+}
+
 # Check if user is ready and remind to have source and destination attached
 $QuickCheck = [System.Windows.MessageBox]::Show('Are Source, Destination and, if needed, a separate disk for the results connected to this computer?','Readiness check','YesNo','Question')
 
@@ -59,7 +95,9 @@ if ($QuickCheck -ieq 'Yes') {
     }
 
     # Copy from source to destination. Source has backslash and asterisk added to properly handle the source whether it's a root directory in a drive, or a folder. Exclusions for system/metadata folders added.
-    Copy-Item -Path "$CopySrc\*" -Destination $CopyDst -Recurse -Force -Exclude $ExceptionList
+    # Copy-Item -Path "$CopySrc\*" -Destination $CopyDst -Recurse -Force -Exclude $ExceptionList
+
+    Copy-Files -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
 
     # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
     $SrcFiles = Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
