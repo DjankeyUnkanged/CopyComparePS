@@ -32,9 +32,13 @@ function Select-SaveFileDialog {
     return $saveFileDialog.FileName
 }
 
-$global:progress = 0
-# Function to create and update a progress bar
-function Show-ProgressBar {
+# Function for Progress + Copy
+function CopyShowProgress {
+    param (
+        [string]$source,
+        [string]$destination,
+        [array]$exceptions
+    )
     # Create a form
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "Progress"
@@ -52,53 +56,26 @@ function Show-ProgressBar {
     $progressBar.Location = New-Object System.Drawing.Point(20, 20)
     $form.Controls.Add($progressBar)
 
-    # Create a timer
-    $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 100
-
-    # Timer tick event handler
-    $timer.add_Tick({
-        if ($global:progress -lt $progressBar.Maximum) {
-            $global:progress++
-            $progressBar.Value = $global:progress
-        } else {
-            $timer.Stop()
-            $form.Close()
-        }
-    })
-
-    # Start the timer
-    $timer.Start()
+    # Get all items in the source directory
+    $items = Get-ChildItem -Path $source -Recurse -Exclude $exceptions
+    $totalItems = (Get-ChildItem -Path $source -File -Recurse -Exclude $exceptions).Count
+    $processedItems = 0
 
     # Show the form
-    $form.ShowDialog()
-}
-
-Show-ProgressBar
-
-# Function to copy files and create directories if they don't exist
-function Copy-Files {
-    param (
-        [string]$source,
-        [string]$destination,
-        [array]$exceptions
-    )
-
-    # Get all items in the source directory
-    $items = Get-ChildItem -Path $source -Recurse
+    $form.Show()
 
     foreach ($item in $items) {
         # Get the relative path of the item
         $relativePath = $item.FullName.Substring($source.Length).TrimStart('\')
-
+    
         # Get the root folder of the item
         $rootFolder = $relativePath.Split('\')[0]
-
+    
         # Check if the root folder is in the exception list
         if ($exceptions -notcontains $rootFolder) {
             # Determine the destination path
             $destPath = Join-Path -Path $destination -ChildPath $relativePath
-
+    
             if ($item.PSIsContainer) {
                 # Create the directory if it doesn't exist
                 if (-not (Test-Path -Path $destPath)) {
@@ -107,11 +84,21 @@ function Copy-Files {
             } else {
                 # Copy the file
                 Copy-Item -Path $item.FullName -Destination $destPath -Force
+
+                # Update progress
+                $processedItems++
+                $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
+                $progressBar.Value = $progressPercentage
+
+                # Refresh the form to update the progress bar
+                $form.Refresh()
             }
         }
     }
+    # Close the form after the copy operation is complete
+    $form.Close()
 }
-
+    
 # Check if user is ready and remind to have source and destination attached
 $QuickCheck = [System.Windows.MessageBox]::Show('Are Source, Destination and, if needed, a separate disk for the results connected to this computer?','Readiness check','YesNo','Question')
 
@@ -141,7 +128,7 @@ if ($QuickCheck -ieq 'Yes') {
     # Copy from source to destination. Source has backslash and asterisk added to properly handle the source whether it's a root directory in a drive, or a folder. Exclusions for system/metadata folders added.
     # Copy-Item -Path "$CopySrc\*" -Destination $CopyDst -Recurse -Force -Exclude $ExceptionList
 
-    Copy-Files -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
+    CopyShowProgress -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
 
     # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
     $SrcFiles = Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
