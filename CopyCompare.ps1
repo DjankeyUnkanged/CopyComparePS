@@ -32,6 +32,7 @@ function Select-SaveFileDialog {
     return $saveFileDialog.FileName
 }
 
+$global:progress = 0
 # Function to create and update a progress bar
 function Show-ProgressBar {
     # Create a form
@@ -51,18 +52,26 @@ function Show-ProgressBar {
     $progressBar.Location = New-Object System.Drawing.Point(20, 20)
     $form.Controls.Add($progressBar)
 
+    # Create a timer
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 100
+
+    # Timer tick event handler
+    $timer.add_Tick({
+        if ($global:progress -lt $progressBar.Maximum) {
+            $global:progress++
+            $progressBar.Value = $global:progress
+        } else {
+            $timer.Stop()
+            $form.Close()
+        }
+    })
+
+    # Start the timer
+    $timer.Start()
+
     # Show the form
-    $form.Show()
-
-    # Loop to update the progress bar
-    for ($i = 0; $i -le 100; $i++) {
-        Start-Sleep -Milliseconds 100
-        $progressBar.Value = $i
-        $form.Refresh()
-    }
-
-    # Close the form when done
-    $form.Close()
+    $form.ShowDialog()
 }
 
 Show-ProgressBar
