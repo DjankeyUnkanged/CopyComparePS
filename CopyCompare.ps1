@@ -39,6 +39,7 @@ function CopyShowProgress {
         [string]$destination,
         [array]$exceptions
     )
+
     # Create a form
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "Progress"
@@ -67,15 +68,15 @@ function CopyShowProgress {
     foreach ($item in $items) {
         # Get the relative path of the item
         $relativePath = $item.FullName.Substring($source.Length).TrimStart('\')
-    
+
         # Get the root folder of the item
         $rootFolder = $relativePath.Split('\')[0]
-    
+
         # Check if the root folder is in the exception list
         if ($exceptions -notcontains $rootFolder) {
             # Determine the destination path
             $destPath = Join-Path -Path $destination -ChildPath $relativePath
-    
+
             if ($item.PSIsContainer) {
                 # Create the directory if it doesn't exist
                 if (-not (Test-Path -Path $destPath)) {
@@ -89,12 +90,11 @@ function CopyShowProgress {
                 $processedItems++
                 $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
                 $progressBar.Value = $progressPercentage
-
-                # Refresh the form to update the progress bar
-                $form.Refresh()
+                [System.Windows.Forms.Application]::DoEvents() # Force the UI to process events
             }
         }
     }
+
     # Close the form after the copy operation is complete
     $form.Close()
 }
