@@ -8,7 +8,18 @@
 # Load the necessary assembly
 Add-Type -AssemblyName System.Windows.Forms # This is for Explorer open/save/browse prompts
 Add-Type -AssemblyName PresentationFramework # This is for GUI alert/dialog boxes
-[System.Windows.Forms.Application]::EnableVisualStyles()
+# [System.Windows.Forms.Application]::EnableVisualStyles()
+
+# Define Xaml for progress bar window
+$xamlTemplate = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{0}" Height="100" Width="400" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <ProgressBar Name="progressBar" Width="350" Height="30" Minimum="0" Maximum="100" Value="{1}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Grid>
+</Window>
+"@
 
 # Set metadata/system folder exception variable
 $ExceptionList = ".Trashes",".Spotlight-V100",".fseventsd","System Volume Information"
@@ -41,39 +52,32 @@ function Show-ProgressBar {
     )
 
     begin {
-        if (-not $script:form) {
-            # Create a form
-            $script:form = New-Object System.Windows.Forms.Form
-            $script:form.Text = $Title
-            $script:form.Width = 400
-            $script:form.Height = 100
-            $script:form.StartPosition = "CenterScreen"
+        if (-not $script:window) {
+            # Replace placeholders in the XAML template
+            $xaml = [string]::Format($xamltemplate, $Title, $Progress)
 
-            $script:progressBar = New-Object System.Windows.Forms.ProgressBar
-            $script:progressBar.Minimum = 0
-            $script:progressBar.Maximum = 100
-            $script:progressBar.Width = 350
-            $script:progressBar.Height = 30
-            $script:progressBar.Value = 0
-            $script:progressBar.Style = "Continuous"
-            $script:progressBar.Location = New-Object System.Drawing.Point(20, 20)
-            $script:form.Controls.Add($script:progressBar)
-            
-            # Show the form
-            $script:form.Show()
+            # Load the XAML
+            $reader = [System.Xml.XmlReader]::Create((New-Object System.IO.StringReader $xaml))
+            $script:window = [Windows.Markup.XamlReader]::Load($reader)
+
+            # Find the progress bar
+            $script:progressBar = $script:window.FindName("progressBar")
+
+            # Show the window
+            $script:window.Show()
         }
     }
 
     process {
         if ($Done) {
-            # Close the form once switch is called
-            $script:form.Close()
-            Remove-Variable -Name form -Scope Script
+            # Close the window once switch is called
+            $script:window.Close()
+            Remove-Variable -Name window -Scope Script
             Remove-Variable -Name progressBar -Scope Script
         } else {
             # Update progress
             $script:progressBar.Value = $Progress
-            [System.Windows.Forms.Application]::DoEvents() # Force the UI to process events
+            [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action] { })
         }
     }
 }
