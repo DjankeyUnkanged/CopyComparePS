@@ -8,6 +8,7 @@
 # Load the necessary assembly
 Add-Type -AssemblyName System.Windows.Forms # This is for Explorer open/save/browse prompts
 Add-Type -AssemblyName PresentationFramework # This is for GUI alert/dialog boxes
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
 # Set metadata/system folder exception variable
 $ExceptionList = ".Trashes",".Spotlight-V100",".fseventsd","System Volume Information"
@@ -35,6 +36,7 @@ function Select-SaveFileDialog {
 function Show-ProgressBar {
     param (
         [int]$Progress,
+        [string]$Title,
         [switch]$Done
     )
 
@@ -42,7 +44,7 @@ function Show-ProgressBar {
         if (-not $script:form) {
             # Create a form
             $script:form = New-Object System.Windows.Forms.Form
-            $script:form.Text = "Progress"
+            $script:form.Text = $Title
             $script:form.Width = 400
             $script:form.Height = 100
             $script:form.StartPosition = "CenterScreen"
@@ -78,7 +80,7 @@ function Show-ProgressBar {
 
 
 # Function for Progress + Copy
-function CopyShowProgress {
+function Copy-Files {
     param (
         [string]$source,
         [string]$destination,
@@ -91,7 +93,7 @@ function CopyShowProgress {
     $processedItems = 0
 
     # Initialize the progress bar
-    Show-ProgressBar -Progress 0
+    Show-ProgressBar -Title "File Copy Progress"
 
     foreach ($item in $items) {
         # Get the relative path of the item
@@ -132,7 +134,6 @@ $QuickCheck = [System.Windows.MessageBox]::Show('Are Source, Destination and, if
 # Check the response of the above prompt and act accordingly (Proceed on Yes, cancel on No)
 if ($QuickCheck -ieq 'Yes') {
     # Pick disk or directory to copy from
-    [System.Windows.Forms.Application]::EnableVisualStyles()
     [System.Windows.MessageBox]::Show("In the following window, please choose the source of data to be copied.",'Choose data source','OK','Information')
     $CopySrc = Select-FolderDialog
     
@@ -152,12 +153,11 @@ if ($QuickCheck -ieq 'Yes') {
         return
     }
 
-    # Copy from source to destination. Source has backslash and asterisk added to properly handle the source whether it's a root directory in a drive, or a folder. Exclusions for system/metadata folders added.
-    # Copy-Item -Path "$CopySrc\*" -Destination $CopyDst -Recurse -Force -Exclude $ExceptionList
-
-    CopyShowProgress -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
+    Copy-Files -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
 
     # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
+    $SrcCount = 0
+    $SrcFileTotal = (Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList).Count
     $SrcFiles = Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
         [PSCustomObject]@{
             Path = $_.FullName
@@ -166,9 +166,15 @@ if ($QuickCheck -ieq 'Yes') {
             Name = $_.Name
             Source = 'Source'
         }
+        $SrcCount++
+        $SrcFilePercentage = ($SrcCount / $SrcFileTotal) * 100
+        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage
     }
+    Show-ProgressBar -Done
 
     # Run a loop - For each file in the destination, gather data and get the SHA256 of each file. Mark each entry as 'Destination' in the array.
+    $DestCount = 0
+    $DestFileTotal = (Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList).Count
     $DestFiles = Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList | ForEach-Object {
         [PSCustomObject]@{
             Path = $_.FullName
@@ -177,7 +183,11 @@ if ($QuickCheck -ieq 'Yes') {
             Name = $_.Name
             Source = 'Destination'
         }
+        $DestCount++
+        $DestFilePercentage = ($DestCount / $DestFileTotal) * 100
+        Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestFilePercentage
     }
+    Show-ProgressBar -Done
 
     # Initialize comparison array
     $Comparison = @()
@@ -223,8 +233,8 @@ if ($QuickCheck -ieq 'Yes') {
 
     [System.Windows.MessageBox]::Show("Comparison results have been saved to $CsvPath.",'Done!','OK','Information')
 
-    # Display the comparison table in console
-    $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
+    # (Optional) Display the comparison table in console
+    # $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
 } else {
     # You shouldn't run the script if you're not ready!!!!
     [System.Windows.MessageBox]::Show('Please make sure Source and Destination are ready, and re-open this script.','Readiness check fail','OK','Exclamation')
