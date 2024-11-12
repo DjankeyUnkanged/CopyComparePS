@@ -32,6 +32,51 @@ function Select-SaveFileDialog {
     return $saveFileDialog.FileName
 }
 
+function Show-ProgressBar {
+    param (
+        [int]$Progress,
+        [switch]$Done
+    )
+
+    begin {
+        if (-not $script:form) {
+            # Create a form
+            $script:form = New-Object System.Windows.Forms.Form
+            $script:form.Text = "Progress"
+            $script:form.Width = 400
+            $script:form.Height = 100
+            $script:form.StartPosition = "CenterScreen"
+
+            $script:progressBar = New-Object System.Windows.Forms.ProgressBar
+            $script:progressBar.Minimum = 0
+            $script:progressBar.Maximum = 100
+            $script:progressBar.Width = 350
+            $script:progressBar.Height = 30
+            $script:progressBar.Value = 0
+            $script:progressBar.Style = "Continuous"
+            $script:progressBar.Location = New-Object System.Drawing.Point(20, 20)
+            $script:form.Controls.Add($script:progressBar)
+            
+            # Show the form
+            $script:form.Show()
+        }
+    }
+
+    process {
+        if ($Done) {
+            # Close the form once switch is called
+            $script:form.Close()
+            Remove-Variable -Name form -Scope Script
+            Remove-Variable -Name progressBar -Scope Script
+        } else {
+            # Update progress
+            $script:progressBar.Value = $Progress
+            [System.Windows.Forms.Application]::DoEvents() # Force the UI to process events
+        }
+    }
+}
+
+
 # Function for Progress + Copy
 function CopyShowProgress {
     param (
@@ -40,30 +85,13 @@ function CopyShowProgress {
         [array]$exceptions
     )
 
-    # Create a form
-    $form = New-Object System.Windows.Forms.Form
-    $form.Text = "Progress"
-    $form.Width = 400
-    $form.Height = 100
-    $form.StartPosition = "CenterScreen"
-
-    $progressBar = New-Object System.Windows.Forms.ProgressBar
-    $progressBar.Minimum = 0
-    $progressBar.Maximum = 100
-    $progressBar.Width = 350
-    $progressBar.Height = 30
-    $progressBar.Value = 0
-    $progressBar.Style = "Continuous"
-    $progressBar.Location = New-Object System.Drawing.Point(20, 20)
-    $form.Controls.Add($progressBar)
-
     # Get all items in the source directory
     $items = Get-ChildItem -Path $source -Recurse -Exclude $exceptions
     $totalItems = (Get-ChildItem -Path $source -File -Recurse -Exclude $exceptions).Count
     $processedItems = 0
 
-    # Show the form
-    $form.Show()
+    # Initialize the progress bar
+    Show-ProgressBar -Progress 0
 
     foreach ($item in $items) {
         # Get the relative path of the item
@@ -89,14 +117,13 @@ function CopyShowProgress {
                 # Update progress
                 $processedItems++
                 $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
-                $progressBar.Value = $progressPercentage
-                [System.Windows.Forms.Application]::DoEvents() # Force the UI to process events
+                Show-ProgressBar -Progress $progressPercentage
             }
         }
     }
 
-    # Close the form after the copy operation is complete
-    $form.Close()
+    # Close the progress bar
+    Show-ProgressBar -Done
 }
     
 # Check if user is ready and remind to have source and destination attached
