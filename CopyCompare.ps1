@@ -167,7 +167,7 @@ if ($QuickCheck -ieq 'Yes') {
             Source = 'Source'
         }
         $SrcCount++
-        $SrcFilePercentage = ($SrcCount / $SrcFileTotal) * 100
+        $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
         Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage
     }
     Show-ProgressBar -Done
@@ -184,7 +184,7 @@ if ($QuickCheck -ieq 'Yes') {
             Source = 'Destination'
         }
         $DestCount++
-        $DestFilePercentage = ($DestCount / $DestFileTotal) * 100
+        $DestFilePercentage = [math]::Round(($DestCount / $DestFileTotal) * 100)
         Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestFilePercentage
     }
     Show-ProgressBar -Done
