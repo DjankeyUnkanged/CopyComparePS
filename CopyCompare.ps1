@@ -92,21 +92,25 @@ $ExceptionList = ".Trashes",".Spotlight-V100",".fseventsd","System Volume Inform
 
 # Function to select a folder
 function Select-FolderDialog {
+    $form = New-Object System.Windows.Forms.Form
+    $form.TopMost = $true
     $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
     $folderBrowser.Description = "Please select a folder."
     $folderBrowser.ShowNewFolderButton = $true
     $folderBrowser.RootFolder = [System.Environment+SpecialFolder]::MyComputer
-    $folderBrowser.ShowDialog() | Out-Null
+    $folderBrowser.ShowDialog($form) | Out-Null
     return $folderBrowser.SelectedPath
 }
 
 # Function to select a file save location
 function Select-SaveFileDialog {
+    $form = New-Object System.Windows.Forms.Form
+    $form.TopMost = $true
     $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
     $saveFileDialog.Filter = "CSV files (*.csv)|*.csv"
     $saveFileDialog.Title = "Save Comparison Results"
     $saveFileDialog.InitialDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::MyDocuments)
-    $saveFileDialog.ShowDialog() | Out-Null
+    $saveFileDialog.ShowDialog($form) | Out-Null
     return $saveFileDialog.FileName
 }
 
