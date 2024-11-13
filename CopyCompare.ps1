@@ -8,7 +8,7 @@
 # Load the necessary assembly
 Add-Type -AssemblyName System.Windows.Forms # This is for Explorer open/save/browse prompts
 Add-Type -AssemblyName PresentationFramework # This is for GUI alert/dialog boxes
-# [System.Windows.Forms.Application]::EnableVisualStyles()
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
 # Define Xaml for progress bar window
 $xamlTemplate = @"
@@ -20,29 +20,6 @@ $xamlTemplate = @"
     </Grid>
 </Window>
 "@
-
-# Set metadata/system folder exception variable
-$ExceptionList = ".Trashes",".Spotlight-V100",".fseventsd","System Volume Information"
-
-# Function to select a folder
-function Select-FolderDialog {
-    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-    $folderBrowser.Description = "Please select a folder."
-    $folderBrowser.ShowNewFolderButton = $true
-    $folderBrowser.RootFolder = [System.Environment+SpecialFolder]::MyComputer
-    $folderBrowser.ShowDialog() | Out-Null
-    return $folderBrowser.SelectedPath
-}
-
-# Function to select a file save location
-function Select-SaveFileDialog {
-    $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
-    $saveFileDialog.Filter = "CSV files (*.csv)|*.csv"
-    $saveFileDialog.Title = "Save Comparison Results"
-    $saveFileDialog.InitialDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::MyDocuments)
-    $saveFileDialog.ShowDialog() | Out-Null
-    return $saveFileDialog.FileName
-}
 
 function Show-ProgressBar {
     param (
@@ -77,11 +54,33 @@ function Show-ProgressBar {
         } else {
             # Update progress
             $script:progressBar.Value = $Progress
-            [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action] { })
+            [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action] { }, [System.Windows.Threading.DispatcherPriority]::Background)
         }
     }
 }
 
+# Set metadata/system folder exception variable
+$ExceptionList = ".Trashes",".Spotlight-V100",".fseventsd","System Volume Information"
+
+# Function to select a folder
+function Select-FolderDialog {
+    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderBrowser.Description = "Please select a folder."
+    $folderBrowser.ShowNewFolderButton = $true
+    $folderBrowser.RootFolder = [System.Environment+SpecialFolder]::MyComputer
+    $folderBrowser.ShowDialog() | Out-Null
+    return $folderBrowser.SelectedPath
+}
+
+# Function to select a file save location
+function Select-SaveFileDialog {
+    $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveFileDialog.Filter = "CSV files (*.csv)|*.csv"
+    $saveFileDialog.Title = "Save Comparison Results"
+    $saveFileDialog.InitialDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::MyDocuments)
+    $saveFileDialog.ShowDialog() | Out-Null
+    return $saveFileDialog.FileName
+}
 
 # Function for Progress + Copy
 function Copy-Files {
