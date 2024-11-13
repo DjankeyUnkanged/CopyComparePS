@@ -10,11 +10,39 @@ Add-Type -AssemblyName System.Windows.Forms # This is for Explorer open/save/bro
 Add-Type -AssemblyName PresentationFramework # This is for GUI alert/dialog boxes
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
+# Define MessageBox function so all MessageBox objects appear on top
+function Show-MessageBox {
+    param (
+        [string]$Message,
+        [string]$Title,
+        [string]$Buttons,
+        [string]$Icon
+    )
+
+    # Preset parameters for the MessageBox
+    $MsgWindow = New-Object System.Windows.Window
+    $MsgWindow.Topmost = $true
+    $MsgWindow.WindowStyle = 'None'
+    $MsgWindow.ShowInTaskbar = $false
+    $MsgWindow.ShowActivated = $false
+    $MsgWindow.Width = 0
+    $MsgWindow.Height = 0
+    $MsgWindow.Show()
+
+    # Show the MessageBox with $MsgWindow as the parent object
+    $result = [System.Windows.MessageBox]::Show($MsgWindow, $Message, $Title, $Buttons, $Icon)
+
+    # Close the parent window
+    $MsgWindow.Close()
+
+    return $result
+}
+
 # Define Xaml for progress bar window
 $xamlTemplate = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="{0}" Height="100" Width="400" WindowStartupLocation="CenterScreen">
+        Title="{0}" Height="100" Width="400" WindowStartupLocation="CenterScreen" Topmost="True">
     <Grid>
         <ProgressBar Name="progressBar" Width="350" Height="30" Minimum="0" Maximum="100" Value="{1}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Grid>
@@ -132,27 +160,27 @@ function Copy-Files {
 }
     
 # Check if user is ready and remind to have source and destination attached
-$QuickCheck = [System.Windows.MessageBox]::Show('Are Source, Destination and, if needed, a separate disk for the results connected to this computer?','Readiness check','YesNo','Question')
+$QuickCheck = Show-MessageBox -Message 'Are Source, Destination and, if needed, a separate disk for the results connected to this computer?' -Title 'Readiness check' -Buttons 'YesNo' -Icon 'Question'
 
 # Check the response of the above prompt and act accordingly (Proceed on Yes, cancel on No)
 if ($QuickCheck -ieq 'Yes') {
     # Pick disk or directory to copy from
-    [System.Windows.MessageBox]::Show("In the following window, please choose the source of data to be copied.",'Choose data source','OK','Information')
+    Show-MessageBox -Message "In the following window, please choose the source of data to be copied." -Title 'Choose data source' -Buttons 'OK' -Icon 'Information'
     $CopySrc = Select-FolderDialog
     
     # Throw an error and exit if the source is invalid
     if ($CopySrc -eq "") {
-        [System.Windows.MessageBox]::Show('The source does not appear to be valid. Exiting...','Invalid source','OK','Exclamation')
+        Show-MessageBox -Message 'The source does not appear to be valid. Exiting...' -Title 'Invalid source' -Buttons 'OK' -Icon 'Exclamation'
         return
     }
 
     # Pick disk or directory to copy source data to
-    [System.Windows.MessageBox]::Show("In the following window, please choose the destination where data is to be copied.",'Choose data destination','OK','Information')
+    Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
     $CopyDst = Select-FolderDialog
 
     # Throw an error and exit if the destination is invalid
     if ($CopyDst -eq "") {
-        [System.Windows.MessageBox]::Show('The destination does not appear to be valid. Exiting...','Invalid destination','OK','Exclamation')
+        Show-MessageBox -Message 'The destination does not appear to be valid. Exiting...' -Title 'Invalid destination' -Buttons 'OK' -Icon 'Exclamation'
         return
     }
 
@@ -222,23 +250,23 @@ if ($QuickCheck -ieq 'Yes') {
 
     # Here's where that FailCanary variable comes in. If the variable has been set to false, there was a mismatch or unhandled error somewhere along the way
     if ($FailCanary -ieq 'False') {
-        [System.Windows.MessageBox]::Show('At least one file has failed to verify between source and destination. Please check your media, delete the destination copy, and try again.','Mismatch detected','OK','Exclamation')
+        Show-MessageBox -Message 'At least one file has failed to verify between source and destination. Please check your media, delete the destination copy, and try again.' -Title 'Mismatch detected' -Buttons 'OK' -Icon 'Exclamation'
     }
     
     # If the script made it to this point, the copy and compare has worked up to this point, even if there was a file mismatch or two. Now to choose the destination for the CSV containing the comparison results.
-    [System.Windows.MessageBox]::Show("Copy and compare complete! In the following window, please choose where you would like to save the comparison results.",'Copy and compare done!','OK','Information')
+    Show-MessageBox -Message "Copy and compare complete! In the following window, please choose where you would like to save the comparison results." -Title 'Copy and compare done!' -Buttons 'OK' -Icon 'Information'
     $CsvPath = Select-SaveFileDialog
     if ($CsvPath -eq "") {
-        [System.Windows.MessageBox]::Show('The destination does not appear to be valid. Exiting...','Invalid destination','OK','Exclamation')
+        Show-MessageBox -Message 'The destination does not appear to be valid. Exiting...' -Title 'Invalid destination' -Buttons 'OK' -Icon 'Exclamation'
         return
     }
     $Comparison | Export-Csv -Path $CsvPath -NoTypeInformation
 
-    [System.Windows.MessageBox]::Show("Comparison results have been saved to $CsvPath.",'Done!','OK','Information')
+    Show-MessageBox -Message "Comparison results have been saved to $CsvPath." -Title 'Done!' -Buttons 'OK' -Icon 'Information'
 
     # (Optional) Display the comparison table in console
     # $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
 } else {
     # You shouldn't run the script if you're not ready!!!!
-    [System.Windows.MessageBox]::Show('Please make sure Source and Destination are ready, and re-open this script.','Readiness check fail','OK','Exclamation')
+    Show-MessageBox -Message 'Please make sure Source and Destination are ready, and re-open this script.' -Title 'Readiness check fail' -Buttons 'OK' -Icon 'Exclamation'
 }
