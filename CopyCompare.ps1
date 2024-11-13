@@ -182,9 +182,9 @@ if ($QuickCheck -ieq 'Yes') {
     Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
     $CopyDst = Select-FolderDialog
 
-    # Throw an error and exit if the destination is invalid
-    if ($CopyDst -eq "") {
-        Show-MessageBox -Message 'The destination does not appear to be valid. Exiting...' -Title 'Invalid destination' -Buttons 'OK' -Icon 'Exclamation'
+    # Throw an error and exit if the destination is same as source or invalid
+    if (($CopyDst -eq "") -or ($CopyDst -ieq $CopySrc)) {
+        Show-MessageBox -Message 'The destination matches the source or is otherwise invalid. Exiting...' -Title 'Invalid destination' -Buttons 'OK' -Icon 'Exclamation'
         return
     }
 
