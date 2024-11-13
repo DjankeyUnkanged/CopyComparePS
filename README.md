@@ -12,6 +12,7 @@ This PowerShell script is designed to copy files from a source disk/directory to
 ## Prerequisites
 * PowerShell
 * .NET Framework (for GUI components)
+
 If you're on Windows 10 22H2 or Windows 11, you shouldn't have to install anything.
 
 ## How to Use
