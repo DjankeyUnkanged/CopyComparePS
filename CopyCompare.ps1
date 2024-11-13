@@ -8,6 +8,56 @@
 # Load the necessary assembly
 Add-Type -AssemblyName System.Windows.Forms # This is for Explorer open/save/browse prompts
 Add-Type -AssemblyName PresentationFramework # This is for GUI alert/dialog boxes
+[System.Windows.Forms.Application]::EnableVisualStyles()
+
+# Define Xaml for progress bar window
+$xamlTemplate = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{0}" Height="100" Width="400" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <ProgressBar Name="progressBar" Width="350" Height="30" Minimum="0" Maximum="100" Value="{1}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Grid>
+</Window>
+"@
+
+function Show-ProgressBar {
+    param (
+        [int]$Progress,
+        [string]$Title,
+        [switch]$Done
+    )
+
+    begin {
+        if (-not $script:window) {
+            # Replace placeholders in the XAML template
+            $xaml = [string]::Format($xamltemplate, $Title, $Progress)
+
+            # Load the XAML
+            $reader = [System.Xml.XmlReader]::Create((New-Object System.IO.StringReader $xaml))
+            $script:window = [Windows.Markup.XamlReader]::Load($reader)
+
+            # Find the progress bar
+            $script:progressBar = $script:window.FindName("progressBar")
+
+            # Show the window
+            $script:window.Show()
+        }
+    }
+
+    process {
+        if ($Done) {
+            # Close the window once switch is called
+            $script:window.Close()
+            Remove-Variable -Name window -Scope Script
+            Remove-Variable -Name progressBar -Scope Script
+        } else {
+            # Update progress
+            $script:progressBar.Value = $Progress
+            [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action] { }, [System.Windows.Threading.DispatcherPriority]::Background)
+        }
+    }
+}
 
 # Set metadata/system folder exception variable
 $ExceptionList = ".Trashes",".Spotlight-V100",".fseventsd","System Volume Information"
@@ -32,13 +82,61 @@ function Select-SaveFileDialog {
     return $saveFileDialog.FileName
 }
 
+# Function for Progress + Copy
+function Copy-Files {
+    param (
+        [string]$source,
+        [string]$destination,
+        [array]$exceptions
+    )
+
+    # Get all items in the source directory
+    $items = Get-ChildItem -Path $source -Recurse -Exclude $exceptions
+    $totalItems = (Get-ChildItem -Path $source -File -Recurse -Exclude $exceptions).Count
+    $processedItems = 0
+
+    # Initialize the progress bar
+    Show-ProgressBar -Title "File Copy Progress"
+
+    foreach ($item in $items) {
+        # Get the relative path of the item
+        $relativePath = $item.FullName.Substring($source.Length).TrimStart('\')
+
+        # Get the root folder of the item
+        $rootFolder = $relativePath.Split('\')[0]
+
+        # Check if the root folder is in the exception list
+        if ($exceptions -notcontains $rootFolder) {
+            # Determine the destination path
+            $destPath = Join-Path -Path $destination -ChildPath $relativePath
+
+            if ($item.PSIsContainer) {
+                # Create the directory if it doesn't exist
+                if (-not (Test-Path -Path $destPath)) {
+                    New-Item -ItemType Directory -Path $destPath
+                }
+            } else {
+                # Copy the file
+                Copy-Item -Path $item.FullName -Destination $destPath -Force
+
+                # Update progress
+                $processedItems++
+                $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
+                Show-ProgressBar -Progress $progressPercentage
+            }
+        }
+    }
+
+    # Close the progress bar
+    Show-ProgressBar -Done
+}
+    
 # Check if user is ready and remind to have source and destination attached
 $QuickCheck = [System.Windows.MessageBox]::Show('Are Source, Destination and, if needed, a separate disk for the results connected to this computer?','Readiness check','YesNo','Question')
 
 # Check the response of the above prompt and act accordingly (Proceed on Yes, cancel on No)
 if ($QuickCheck -ieq 'Yes') {
     # Pick disk or directory to copy from
-    [System.Windows.Forms.Application]::EnableVisualStyles()
     [System.Windows.MessageBox]::Show("In the following window, please choose the source of data to be copied.",'Choose data source','OK','Information')
     $CopySrc = Select-FolderDialog
     
@@ -58,10 +156,11 @@ if ($QuickCheck -ieq 'Yes') {
         return
     }
 
-    # Copy from source to destination. Source has backslash and asterisk added to properly handle the source whether it's a root directory in a drive, or a folder. Exclusions for system/metadata folders added.
-    Copy-Item -Path "$CopySrc\*" -Destination $CopyDst -Recurse -Force -Exclude $ExceptionList
+    Copy-Files -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
 
     # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
+    $SrcCount = 0
+    $SrcFileTotal = (Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList).Count
     $SrcFiles = Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
         [PSCustomObject]@{
             Path = $_.FullName
@@ -70,9 +169,15 @@ if ($QuickCheck -ieq 'Yes') {
             Name = $_.Name
             Source = 'Source'
         }
+        $SrcCount++
+        $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
+        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage
     }
+    Show-ProgressBar -Done
 
     # Run a loop - For each file in the destination, gather data and get the SHA256 of each file. Mark each entry as 'Destination' in the array.
+    $DestCount = 0
+    $DestFileTotal = (Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList).Count
     $DestFiles = Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList | ForEach-Object {
         [PSCustomObject]@{
             Path = $_.FullName
@@ -81,7 +186,11 @@ if ($QuickCheck -ieq 'Yes') {
             Name = $_.Name
             Source = 'Destination'
         }
+        $DestCount++
+        $DestFilePercentage = [math]::Round(($DestCount / $DestFileTotal) * 100)
+        Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestFilePercentage
     }
+    Show-ProgressBar -Done
 
     # Initialize comparison array
     $Comparison = @()
@@ -127,8 +236,8 @@ if ($QuickCheck -ieq 'Yes') {
 
     [System.Windows.MessageBox]::Show("Comparison results have been saved to $CsvPath.",'Done!','OK','Information')
 
-    # Display the comparison table in console
-    $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
+    # (Optional) Display the comparison table in console
+    # $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
 } else {
     # You shouldn't run the script if you're not ready!!!!
     [System.Windows.MessageBox]::Show('Please make sure Source and Destination are ready, and re-open this script.','Readiness check fail','OK','Exclamation')
