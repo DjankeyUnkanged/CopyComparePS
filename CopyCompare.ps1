@@ -123,8 +123,8 @@ function Copy-Files {
     )
 
     # Get all items in the source directory
-    $items = Get-ChildItem -Path $source -Recurse -Exclude $exceptions
-    $totalItems = (Get-ChildItem -Path $source -File -Recurse -Exclude $exceptions).Count
+    $items = Get-ChildItem -LiteralPath $source -Recurse -Exclude $exceptions
+    $totalItems = (Get-ChildItem -LiteralPath $source -File -Recurse -Exclude $exceptions).Count
     $processedItems = 0
 
     # Initialize the progress bar
@@ -144,12 +144,12 @@ function Copy-Files {
 
             if ($item.PSIsContainer) {
                 # Create the directory if it doesn't exist
-                if (-not (Test-Path -Path $destPath)) {
+                if (-not (Test-Path -LiteralPath $destPath)) {
                     New-Item -ItemType Directory -Path $destPath
                 }
             } else {
                 # Copy the file
-                Copy-Item -Path $item.FullName -Destination $destPath -Force
+                Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force
 
                 # Update progress
                 $processedItems++
@@ -196,7 +196,7 @@ if ($QuickCheck -ieq 'Yes') {
     $SrcFiles = Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
         [PSCustomObject]@{
             Path = $_.FullName
-            Hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+            Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
             Size = $_.Length
             Name = $_.Name
             Source = 'Source'
@@ -213,7 +213,7 @@ if ($QuickCheck -ieq 'Yes') {
     $DestFiles = Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList | ForEach-Object {
         [PSCustomObject]@{
             Path = $_.FullName
-            Hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+            Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
             Size = $_.Length
             Name = $_.Name
             Source = 'Destination'
