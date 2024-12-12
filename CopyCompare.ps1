@@ -42,9 +42,19 @@ function Show-MessageBox {
 $xamlTemplate = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="{0}" Height="100" Width="400" WindowStartupLocation="CenterScreen" Topmost="True">
+        Title="{0}" Height="150" Width="400" WindowStartupLocation="CenterScreen" Topmost="True">
     <Grid>
-        <ProgressBar Name="progressBar" Width="350" Height="30" Minimum="0" Maximum="100" Value="{1}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <ProgressBar Name="progressBar" Width="350" Height="30" Minimum="0" Maximum="100" Value="{1}" HorizontalAlignment="Center"/>
+            <Grid Width="350" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Name="fileSizeText" Text="{2} MB" HorizontalAlignment="Left" Grid.Column="0"/>
+                <TextBlock Name="progressText" Text="{1}%" HorizontalAlignment="Right" Grid.Column="1"/>
+            </Grid>
+        </StackPanel>
     </Grid>
 </Window>
 "@
@@ -53,20 +63,26 @@ function Show-ProgressBar {
     param (
         [int]$Progress,
         [string]$Title,
+        [int]$FileSizeBytes,
         [switch]$Done
     )
 
     begin {
         if (-not $script:window) {
+            # Convert file size to MB
+            $fileSizeMB = [math]::Round($FileSizeBytes / 1MB, 2)
+
             # Replace placeholders in the XAML template
-            $xaml = [string]::Format($xamltemplate, $Title, $Progress)
+            $xaml = [string]::Format($xamltemplate, $Title, $Progress, "$fileSizeMB")
 
             # Load the XAML
             $reader = [System.Xml.XmlReader]::Create((New-Object System.IO.StringReader $xaml))
             $script:window = [Windows.Markup.XamlReader]::Load($reader)
 
-            # Find the progress bar
+            # Find the elements
             $script:progressBar = $script:window.FindName("progressBar")
+            $script:fileSizeText = $script:window.FindName("fileSizeText")
+            $script:progressText = $script:window.FindName("progressText")
 
             # Show the window
             $script:window.Show()
@@ -79,9 +95,15 @@ function Show-ProgressBar {
             $script:window.Close()
             Remove-Variable -Name window -Scope Script
             Remove-Variable -Name progressBar -Scope Script
+            Remove-Variable -Name fileSizeText -Scope Script
+            Remove-Variable -Name progressText -Scope Script
         } else {
+            # Convert file size to MB
+            $fileSizeMB = [math]::Round($FileSizeBytes / 1MB, 2)
             # Update progress
             $script:progressBar.Value = $Progress
+            $script:progressText.Text = "$Progress%"
+            $script:fileSizeText.Text = "$fileSizeMB MB"
             [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action] { }, [System.Windows.Threading.DispatcherPriority]::Background)
         }
     }
@@ -154,7 +176,7 @@ function Copy-Files {
                 # Update progress
                 $processedItems++
                 $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
-                Show-ProgressBar -Progress $progressPercentage
+                Show-ProgressBar -Progress $progressPercentage $FileSizeBytes $item.Length
             }
         }
     }
@@ -203,7 +225,7 @@ if ($QuickCheck -ieq 'Yes') {
         }
         $SrcCount++
         $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
-        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage
+        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes $_.Length
     }
     Show-ProgressBar -Done
 
@@ -220,7 +242,7 @@ if ($QuickCheck -ieq 'Yes') {
         }
         $DestCount++
         $DestFilePercentage = [math]::Round(($DestCount / $DestFileTotal) * 100)
-        Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestFilePercentage
+        Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestFilePercentage -FileSizeBytes $_.Length
     }
     Show-ProgressBar -Done
 
@@ -245,7 +267,9 @@ if ($QuickCheck -ieq 'Yes') {
             DstPath = $destFile.Path
             SrcHash = $srcFile.Hash
             DstHash = $destFile.Hash
+            SrcSizeInMB = ([math]::Round($srcFile.Size / 1MB, 2))
             SrcSizeInBytes = $srcFile.Size
+            DstSizeInMB = ([math]::Round($destFile.Size / 1MB, 2))
             DstSizeInBytes = $destFile.Size
             Match = ($srcFile.Hash -eq $destFile.Hash)
         }
