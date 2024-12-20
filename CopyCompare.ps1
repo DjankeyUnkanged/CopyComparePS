@@ -146,7 +146,7 @@ function Copy-Files {
 
     # Get all items in the source directory
     $items = Get-ChildItem -LiteralPath $source -Recurse -Exclude $exceptions
-    $totalItems = (Get-ChildItem -LiteralPath $source -File -Recurse -Exclude $exceptions).Count
+    $totalItems = $items.Count
     $processedItems = 0
 
     # Initialize the progress bar
@@ -172,13 +172,12 @@ function Copy-Files {
             } else {
                 # Copy the file
                 Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force
-
-                # Update progress
-                $processedItems++
-                $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
-                Show-ProgressBar -Progress $progressPercentage $FileSizeBytes $item.Length
             }
         }
+        # Update progress
+        $processedItems++
+        $progressPercentage = [math]::Round(($processedItems / $totalItems) * 100)
+        Show-ProgressBar -Progress $progressPercentage $FileSizeBytes $item.Length
     }
 
     # Close the progress bar
@@ -203,24 +202,45 @@ if ($QuickCheck -ieq 'Yes') {
     # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
     $SrcCount = 0
     $SrcTotal = 0
-    $SrcFileTotal = (Get-ChildItem -LiteralPath $CopySrc -Recurse -File -Exclude $ExceptionList).Count
-    $SrcFiles = Get-ChildItem -LiteralPath $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
-        [PSCustomObject]@{
-            Path = $_.FullName
-            Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-            Size = $_.Length
-            Name = $_.Name
-            Source = 'Source'
+    $SrcFileTotal = (Get-ChildItem -LiteralPath $CopySrc -Recurse -Attributes !System).Count
+    $SrcFiles = Get-ChildItem -LiteralPath $CopySrc -Recurse -Attributes !System | ForEach-Object {
+        # Get relative path of source file - If file is D:\temp\file.log where $CopySrc is D:\, the result would be temp\file.log
+        $SrcRelativePath = $_.FullName.Substring($CopySrc.Length).TrimStart('\')
+
+        # Get root folder for a given item - If relative path is temp\file.log, result would be temp
+        $SrcRootFolder = $SrcRelativePath.Split('\')[0]
+
+        if ($ExceptionList -notcontains $SrcRootFolder) {
+            if ($_.PSIsContainer) {
+                [PSCustomObject]@{
+                    Path = $_.FullName
+                    Hash = 'FOLDER'
+                    Size = 'FOLDER'
+                    Name = $_.Name
+                    Source = 'Source'
+                }
+                $SrcCount++
+                $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
+                Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes 0
+            } else {
+                [PSCustomObject]@{
+                    Path = $_.FullName
+                    Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+                    Size = $_.Length
+                    Name = $_.Name
+                    Source = 'Source'
+                }
+                $SrcTotal += $_.Length
+                $SrcCount++
+                $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
+                Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes $_.Length
+            }
         }
-        $SrcTotal += $_.Length
-        $SrcCount++
-        $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
-        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes $_.Length
     }
     Show-ProgressBar -Done
 
     $SrcTotalMB = [math]::Round($SrcTotal / 1MB, 2)
-    Show-MessageBox -Message "Total size of data from the source data is $SrcTotalMB." -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
+    Show-MessageBox -Message "Total size of data from the source data is $SrcTotalMB MB." -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
 
     # Pick disk or directory to copy source data to
     Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
