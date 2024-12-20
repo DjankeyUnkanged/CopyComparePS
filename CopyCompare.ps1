@@ -200,6 +200,28 @@ if ($QuickCheck -ieq 'Yes') {
         return
     }
 
+    # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
+    $SrcCount = 0
+    $SrcTotal = 0
+    $SrcFileTotal = (Get-ChildItem -LiteralPath $CopySrc -Recurse -File -Exclude $ExceptionList).Count
+    $SrcFiles = Get-ChildItem -LiteralPath $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
+        [PSCustomObject]@{
+            Path = $_.FullName
+            Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+            Size = $_.Length
+            Name = $_.Name
+            Source = 'Source'
+        }
+        $SrcTotal += $_.Length
+        $SrcCount++
+        $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
+        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes $_.Length
+    }
+    Show-ProgressBar -Done
+
+    $SrcTotalMB = [math]::Round($SrcTotal / 1MB, 2)
+    Show-MessageBox -Message "Total size of data from the source data is $SrcTotalMB." -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
+
     # Pick disk or directory to copy source data to
     Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
     $CopyDst = Select-FolderDialog
@@ -211,23 +233,6 @@ if ($QuickCheck -ieq 'Yes') {
     }
 
     Copy-Files -source $CopySrc -destination $CopyDst -exceptions $ExceptionList
-
-    # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
-    $SrcCount = 0
-    $SrcFileTotal = (Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList).Count
-    $SrcFiles = Get-ChildItem $CopySrc -Recurse -File -Exclude $ExceptionList | ForEach-Object {
-        [PSCustomObject]@{
-            Path = $_.FullName
-            Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-            Size = $_.Length
-            Name = $_.Name
-            Source = 'Source'
-        }
-        $SrcCount++
-        $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
-        Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes $_.Length
-    }
-    Show-ProgressBar -Done
 
     # Run a loop - For each file in the destination, gather data and get the SHA256 of each file. Mark each entry as 'Destination' in the array.
     $DestCount = 0
