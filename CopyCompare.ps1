@@ -145,7 +145,7 @@ function Copy-Files {
     )
 
     # Get all items in the source directory
-    $items = Get-ChildItem -LiteralPath $source -Recurse -Exclude $exceptions
+    $items = Get-ChildItem -LiteralPath $source -Recurse -Attributes !System
     $totalItems = $items.Count
     $processedItems = 0
 
@@ -202,7 +202,7 @@ if ($QuickCheck -ieq 'Yes') {
     # Run a loop - For each file in the source, gather data and get the SHA256 of each file. Mark each entry as 'Source' in the array.
     $SrcCount = 0
     $SrcTotal = 0
-    $SrcFileTotal = (Get-ChildItem -LiteralPath $CopySrc -Recurse -Attributes !System).Count
+    $SrcItemTotal = (Get-ChildItem -LiteralPath $CopySrc -Recurse -Attributes !System).Count
     $SrcFiles = Get-ChildItem -LiteralPath $CopySrc -Recurse -Attributes !System | ForEach-Object {
         # Get relative path of source file - If file is D:\temp\file.log where $CopySrc is D:\, the result would be temp\file.log
         $SrcRelativePath = $_.FullName.Substring($CopySrc.Length).TrimStart('\')
@@ -213,8 +213,8 @@ if ($QuickCheck -ieq 'Yes') {
         if ($ExceptionList -notcontains $SrcRootFolder) {
             if ($_.PSIsContainer) {
                 $SrcCount++
-                $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
-                Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes 0
+                $SrcProcessPercentage = [math]::Round(($SrcCount / $SrcItemTotal) * 100)
+                Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcProcessPercentage -FileSizeBytes 0
             } else {
                 [PSCustomObject]@{
                     Path = $_.FullName
@@ -225,8 +225,8 @@ if ($QuickCheck -ieq 'Yes') {
                 }
                 $SrcTotal += $_.Length
                 $SrcCount++
-                $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
-                Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes $_.Length
+                $SrcProcessPercentage = [math]::Round(($SrcCount / $SrcItemTotal) * 100)
+                Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcProcessPercentage -FileSizeBytes $_.Length
             }
         }
     }
@@ -260,18 +260,26 @@ if ($QuickCheck -ieq 'Yes') {
 
     # Run a loop - For each file in the destination, gather data and get the SHA256 of each file. Mark each entry as 'Destination' in the array.
     $DestCount = 0
-    $DestFileTotal = (Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList).Count
-    $DestFiles = Get-ChildItem $CopyDst -Recurse -File -Exclude $ExceptionList | ForEach-Object {
-        [PSCustomObject]@{
-            Path = $_.FullName
-            Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-            Size = $_.Length
-            Name = $_.Name
-            Source = 'Destination'
+    $DestItemTotal = (Get-ChildItem -LiteralPath $CopyDst -Recurse -Attributes !System).Count
+    $DestFiles = Get-ChildItem -LiteralPath $CopyDst -Recurse -Attributes !System | ForEach-Object {
+        if ($_.PSIsContainer) {
+            # If current item is a folder, do not add an entry to the array, but calculate job percentage
+            $DestCount++
+            $DestProcessPercentage = [math]::Round(($DestCount / $DestItemTotal) * 100)
+            Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestProcessPercentage -FileSizeBytes 0
+        } else {
+            # Otherwise, add file details, hash the file, and add to array
+            [PSCustomObject]@{
+                Path = $_.FullName
+                Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+                Size = $_.Length
+                Name = $_.Name
+                Source = 'Destination'
+            }
+            $DestCount++
+            $DestProcessPercentage = [math]::Round(($DestCount / $DestItemTotal) * 100)
+            Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestProcessPercentage -FileSizeBytes $_.Length
         }
-        $DestCount++
-        $DestFilePercentage = [math]::Round(($DestCount / $DestFileTotal) * 100)
-        Show-ProgressBar -Title "Destination Hash Progress" -Progress $DestFilePercentage -FileSizeBytes $_.Length
     }
     Show-ProgressBar -Done
 
