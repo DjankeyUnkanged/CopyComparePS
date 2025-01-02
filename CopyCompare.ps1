@@ -212,13 +212,6 @@ if ($QuickCheck -ieq 'Yes') {
 
         if ($ExceptionList -notcontains $SrcRootFolder) {
             if ($_.PSIsContainer) {
-                [PSCustomObject]@{
-                    Path = $_.FullName
-                    Hash = 'FOLDER'
-                    Size = 'FOLDER'
-                    Name = $_.Name
-                    Source = 'Source'
-                }
                 $SrcCount++
                 $SrcFilePercentage = [math]::Round(($SrcCount / $SrcFileTotal) * 100)
                 Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcFilePercentage -FileSizeBytes 0
@@ -245,6 +238,17 @@ if ($QuickCheck -ieq 'Yes') {
     # Pick disk or directory to copy source data to
     Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
     $CopyDst = Select-FolderDialog
+
+    # Get root drive letter of destination, then get used and free space
+    $DestRootDrive = Split-Path -Path $CopyDst -Qualifier
+    $DestSpace = Get-PSDrive $DestRootDrive.Trim(':') | Select-Object Used,Free
+    $DestFreeSpaceMB = [math]::Round($DestSpace.Free / 1MB, 2)
+
+    # Throw an error and exit if the destination doesn't have enough free space relative to the total size of source data
+    if ($DestSpace.Free -lt $SrcTotal) {
+        Show-MessageBox -Message "The destination doesn't have enough free space. $SrcTotalMB MB is needed, $DestFreeSpaceMB MB is available. Exiting..." -Title 'Not enough free space' -Buttons 'OK' -Icon 'Exclamation'
+        return
+    }
 
     # Throw an error and exit if the destination is same as source or invalid
     if (($CopyDst -eq "") -or ($CopyDst -ieq $CopySrc)) {
