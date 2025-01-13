@@ -233,7 +233,7 @@ if ($QuickCheck -ieq 'Yes') {
     Show-ProgressBar -Done
 
     $SrcTotalMB = [math]::Round($SrcTotal / 1MB, 2)
-    Show-MessageBox -Message "Total size of data from the source data is $SrcTotalMB MB. Please ensure your destination has enough free storage space!" -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
+    Show-MessageBox -Message "Total size of data from the source is $SrcTotalMB MB. Please ensure your destination has enough free storage space!" -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
 
     # Pick disk or directory to copy source data to
     Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
