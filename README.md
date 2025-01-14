@@ -1,4 +1,4 @@
-# ~~Simple~~ Copy and Compare PowerShell Script
+# Copy and Compare PowerShell Script
 ## Overview
 This PowerShell script is designed to copy files from a source disk/directory to a destination disk/directory and then compare the files using SHA256 hashing to ensure data integrity. This script uses GUI elements, so no CLI familiarity is required for usage.
 
@@ -18,10 +18,10 @@ If you're on Windows 10 22H2 or Windows 11, you shouldn't have to install anythi
 ## How to Use
 1. **Run the Script:** Execute the script in PowerShell.
 2. **Readiness Check:** A prompt will ask if the source, destination, and (if needed) a separate disk for results are connected to the computer. Click ‘Yes’ to proceed once you have verified.
-3. **Select Source:** Choose the source directory or disk containing the files to be copied. 
+3. **Select Source:** Choose the source directory or disk containing the files to be copied. All files in the source will be hashed and a progress bar may show.
 4. **Select Destination:** Choose the destination directory or disk where the files will be copied.
 5. **Copy Process:** The script will copy the files and may display a progress bar.
-6. **Comparison Process:** After copying, the script will compare the source and destination directories using SHA256 hashing and may display a progress bar.
+6. **Comparison Process:** After copying, the script will compare the source and destination data using SHA256 hashing and may display a progress bar.
 7. **Save Results:** Once the comparison is complete, choose a location to save the comparison results as a CSV file. This CSV is used to verify that every single file matches between source and destination. 
 8. **Completion:** A message will confirm that the comparison results have been saved. You are done!
 
@@ -30,7 +30,7 @@ If you're on Windows 10 22H2 or Windows 11, you shouldn't have to install anythi
 * If any file mismatches are detected during the comparison, the script will alert the user to check the media and try again.
 
 ## Exclusions
-The script excludes the following common system and metadata folders:
+The script excludes files and folders with 'System' attributes, as well as the following common system and metadata folders:
 * .Trashes
 * .Spotlight-V100
 * .fseventsd
