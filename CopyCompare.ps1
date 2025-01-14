@@ -1,4 +1,4 @@
-# 'Simple' copy and compare PowerShell script
+# 'Simple' copy and compare PowerShell script V0.9
 # 
 # Description: This script will ask for a source and destination, copy the source to the destination, and then compare the files between the two using SHA256 hashing.
 # It should throw errors if entries are invalid, or if the data comparison fails for whatever reason. I have tried to add exclusions for common metatdata or system folders
