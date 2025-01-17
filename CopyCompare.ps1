@@ -1,4 +1,4 @@
-# 'Simple' copy and compare PowerShell script V0.9
+# 'Simple' copy and compare PowerShell script V0.95
 # 
 # Description: This script will ask for a source and destination, copy the source to the destination, and then compare the files between the two using SHA256 hashing.
 # It should throw errors if entries are invalid, or if the data comparison fails for whatever reason. I have tried to add exclusions for common metatdata or system folders
@@ -288,7 +288,7 @@ if ($QuickCheck -ieq 'Yes') {
     
     # Create array by adding the source file and destination file arrays together into one, organizing by SHA256 hash and file name. If all goes well in the copy, there should be two of every file (1 in source, 1 in destination), no more, no less.
     # Grouping by object name alone doesn't work because sources can have multiple files with the same name, but different hashes - this throws the array off, breaking the script. Using two parameters avoids this issue.
-    $FileGroups = ($SrcFiles + $DestFiles) | Group-Object Hash,Name
+    $FileGroups = (@($SrcFiles) + @($DestFiles)) | Group-Object Hash,Name
     
     # Initialize variable (think canary in a coal mine)
     $FailCanary = 'True'
@@ -316,21 +316,14 @@ if ($QuickCheck -ieq 'Yes') {
     # Here's where that FailCanary variable comes in. If the variable has been set to false, there was a mismatch or unhandled error somewhere along the way
     if ($FailCanary -ieq 'False') {
         Show-MessageBox -Message 'At least one file has failed to verify between source and destination. Please check your media, delete the destination copy, and try again.' -Title 'Mismatch detected' -Buttons 'OK' -Icon 'Exclamation'
-    }
-    
-    # If the script made it to this point, the copy and compare has worked up to this point, even if there was a file mismatch or two. Now to choose the destination for the CSV containing the comparison results.
-    Show-MessageBox -Message "Copy and compare complete! In the following window, please choose where you would like to save the comparison results." -Title 'Copy and compare done!' -Buttons 'OK' -Icon 'Information'
-    $CsvPath = Select-SaveFileDialog
-    if ($CsvPath -eq "") {
-        Show-MessageBox -Message 'The destination does not appear to be valid. Exiting...' -Title 'Invalid destination' -Buttons 'OK' -Icon 'Exclamation'
         return
     }
-    $Comparison | Export-Csv -Path $CsvPath -NoTypeInformation
+    
+    Show-MessageBox -Message "Data was copied and integrity verified successfully! Copy and compare complete!" -Title 'Copy and compare done!' -Buttons 'OK' -Icon 'Information'
 
-    Show-MessageBox -Message "Comparison results have been saved to $CsvPath." -Title 'Done!' -Buttons 'OK' -Icon 'Information'
+    if ($false -eq (Test-Path -LiteralPath 'C:\temp\')) {New-Item -ItemType Directory -Path 'C:\temp'}
+    $Comparison | Export-Csv -Path "C:\temp\$(Get-Date -UFormat '%Y%m%d_%H%M%S')_CopyCompare_result.csv" -NoTypeInformation
 
-    # (Optional) Display the comparison table in console
-    # $Comparison | Format-Table -Property Name, SrcPath, DstPath, SrcHash, DstHash, SrcSizeInBytes, DstSizeInBytes, Match
 } else {
     # You shouldn't run the script if you're not ready!!!!
     Show-MessageBox -Message 'Please make sure Source and Destination are ready, and re-open this script.' -Title 'Readiness check fail' -Buttons 'OK' -Icon 'Exclamation'
