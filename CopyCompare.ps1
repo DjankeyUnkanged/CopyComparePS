@@ -10,6 +10,30 @@ Add-Type -AssemblyName System.Windows.Forms # This is for Explorer open/save/bro
 Add-Type -AssemblyName PresentationFramework # This is for GUI alert/dialog boxes
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
+function SizeCheck {
+    param (
+        [int64]$SizeInBytes
+    )
+    
+    if ($SizeInBytes -ge 1TB) {
+        $SizeChkResult = [math]::Round($SizeInBytes / 1TB, 2)
+        $SizeUnit = "TB"
+    } elseif ($SizeInBytes -ge 1GB) {
+        $SizeChkResult = [math]::Round($SizeInBytes / 1GB, 2)
+        $SizeUnit = "GB"
+    } elseif ($SizeInBytes -ge 1MB) {
+        $SizeChkResult = [math]::Round($SizeInBytes / 1MB, 2)
+        $SizeUnit = "MB"
+    } elseif ($SizeInBytes -ge 1KB) {
+        $SizeChkResult = [math]::Round($SizeInBytes / 1KB, 2)
+        $SizeUnit = "KB"
+    } elseif ($SizeInBytes -lt 1KB) {
+        $SizeChkResult = $SizeInBytes
+        $SizeUnit = "Bytes"
+    }
+    return "$SizeChkResult $SizeUnit"
+}
+
 # Define MessageBox function so all MessageBox objects appear on top
 function Show-MessageBox {
     param (
@@ -63,17 +87,17 @@ function Show-ProgressBar {
     param (
         [int]$Progress,
         [string]$Title,
-        [int]$FileSizeBytes,
+        [int64]$FileSizeBytes,
         [switch]$Done
     )
 
     begin {
         if (-not $script:window) {
             # Convert file size to MB
-            $fileSizeMB = [math]::Round($FileSizeBytes / 1MB, 2)
+            $fileSizeAdj = SizeCheck -SizeInBytes $FileSizeBytes
 
             # Replace placeholders in the XAML template
-            $xaml = [string]::Format($xamltemplate, $Title, $Progress, "$fileSizeMB")
+            $xaml = [string]::Format($xamltemplate, $Title, $Progress, $fileSizeAdj)
 
             # Load the XAML
             $reader = [System.Xml.XmlReader]::Create((New-Object System.IO.StringReader $xaml))
@@ -99,11 +123,11 @@ function Show-ProgressBar {
             Remove-Variable -Name progressText -Scope Script
         } else {
             # Convert file size to MB
-            $fileSizeMB = [math]::Round($FileSizeBytes / 1MB, 2)
+            $fileSizeAdj = SizeCheck -SizeInBytes $FileSizeBytes
             # Update progress
             $script:progressBar.Value = $Progress
             $script:progressText.Text = "$Progress%"
-            $script:fileSizeText.Text = "$fileSizeMB MB"
+            $script:fileSizeText.Text = $fileSizeAdj
             [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action] { }, [System.Windows.Threading.DispatcherPriority]::Background)
         }
     }
@@ -232,8 +256,8 @@ if ($QuickCheck -ieq 'Yes') {
     }
     Show-ProgressBar -Done
 
-    $SrcTotalMB = [math]::Round($SrcTotal / 1MB, 2)
-    Show-MessageBox -Message "Total size of data from the source is $SrcTotalMB MB. Please ensure your destination has enough free storage space!" -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
+    $SrcTotalAdj = SizeCheck -SizeInBytes $SrcTotal
+    Show-MessageBox -Message "Total size of data from the source is $SrcTotalAdj. Please ensure your destination has enough free storage space!" -Title 'Source Data Size' -Buttons 'OK' -Icon 'Information'
 
     # Pick disk or directory to copy source data to
     Show-MessageBox -Message "In the following window, please choose the destination where data is to be copied." -Title 'Choose data destination' -Buttons 'OK' -Icon 'Information'
@@ -242,11 +266,11 @@ if ($QuickCheck -ieq 'Yes') {
     # Get root drive letter of destination, then get used and free space
     $DestRootDrive = Split-Path -Path $CopyDst -Qualifier
     $DestSpace = Get-PSDrive $DestRootDrive.Trim(':') | Select-Object Used,Free
-    $DestFreeSpaceMB = [math]::Round($DestSpace.Free / 1MB, 2)
+    $DestFreeSpaceAdj = SizeCheck -SizeInBytes $DestSpace.Free
 
     # Throw an error and exit if the destination doesn't have enough free space relative to the total size of source data
     if ($DestSpace.Free -lt $SrcTotal) {
-        Show-MessageBox -Message "The destination doesn't have enough free space. $SrcTotalMB MB is needed, $DestFreeSpaceMB MB is available. Exiting..." -Title 'Not enough free space' -Buttons 'OK' -Icon 'Exclamation'
+        Show-MessageBox -Message "The destination doesn't have enough free space. $SrcTotalAdj is needed, $DestFreeSpaceAdj is available. Exiting..." -Title 'Not enough free space' -Buttons 'OK' -Icon 'Exclamation'
         return
     }
 
@@ -304,9 +328,9 @@ if ($QuickCheck -ieq 'Yes') {
             DstPath = $destFile.Path
             SrcHash = $srcFile.Hash
             DstHash = $destFile.Hash
-            SrcSizeInMB = ([math]::Round($srcFile.Size / 1MB, 2))
+            SrcSizeAdjusted = SizeCheck -SizeInBytes $srcFile.Size
             SrcSizeInBytes = $srcFile.Size
-            DstSizeInMB = ([math]::Round($destFile.Size / 1MB, 2))
+            DstSizeAdjusted = SizeCheck -SizeInBytes $destFile.Size
             DstSizeInBytes = $destFile.Size
             Match = ($srcFile.Hash -eq $destFile.Hash)
         }
