@@ -1,4 +1,4 @@
-# 'Simple' copy and compare PowerShell script V0.97
+# 'Simple' copy and compare PowerShell script V0.98
 # 
 # Description: This script will ask for a source and destination, copy the source to the destination, and then compare the files between the two using SHA256 hashing.
 # It should throw errors if entries are invalid, or if the data comparison fails for whatever reason. I have tried to add exclusions for common metatdata or system folders
@@ -241,6 +241,7 @@ if ($QuickCheck -ieq 'Yes') {
                 Show-ProgressBar -Title "Source Hash Progress" -Progress $SrcProcessPercentage -FileSizeBytes 0
             } else {
                 [PSCustomObject]@{
+                    RelPath = $SrcRelativePath
                     Path = $_.FullName
                     Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
                     Size = $_.Length
@@ -286,6 +287,7 @@ if ($QuickCheck -ieq 'Yes') {
     $DestCount = 0
     $DestItemTotal = (Get-ChildItem -LiteralPath $CopyDst -Recurse -Attributes !System).Count
     $DestFiles = Get-ChildItem -LiteralPath $CopyDst -Recurse -Attributes !System | ForEach-Object {
+        $DestRelativePath = $_.FullName.Substring($CopyDst.Length).TrimStart('\')
         if ($_.PSIsContainer) {
             # If current item is a folder, do not add an entry to the array, but calculate job percentage
             $DestCount++
@@ -294,6 +296,7 @@ if ($QuickCheck -ieq 'Yes') {
         } else {
             # Otherwise, add file details, hash the file, and add to array
             [PSCustomObject]@{
+                RelPath = $DestRelativePath
                 Path = $_.FullName
                 Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
                 Size = $_.Length
@@ -312,7 +315,7 @@ if ($QuickCheck -ieq 'Yes') {
     
     # Create array by adding the source file and destination file arrays together into one, organizing by SHA256 hash and file name. If all goes well in the copy, there should be two of every file (1 in source, 1 in destination), no more, no less.
     # Grouping by object name alone doesn't work because sources can have multiple files with the same name, but different hashes - this throws the array off, breaking the script. Using two parameters avoids this issue.
-    $FileGroups = (@($SrcFiles) + @($DestFiles)) | Group-Object Hash,Name
+    $FileGroups = (@($SrcFiles) + @($DestFiles)) | Group-Object RelPath,Hash
     
     # Initialize variable (think canary in a coal mine)
     $FailCanary = 'True'

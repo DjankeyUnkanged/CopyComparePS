@@ -1,5 +1,8 @@
 #CopyComparePS Update History
 
+### Version 0.98 - Feb 3, 2025
+Change - For the comparison loop, I've changed it to group the objects from SrcFiles and DestFiles by relative path and hash, rather than file name and hash. This should help reduce issues with copies where there are many files with the same name in different directories.
+
 ### Version 0.97 - Jan 30, 2025
 Oops, I forgot to update this alongside the script x.x
 Addition - 'SizeCheck' function that will take an input number (SizeInBytes) and convert it to the largest relevant data unit, up to Terabytes.
